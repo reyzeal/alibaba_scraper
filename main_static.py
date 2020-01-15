@@ -13,35 +13,15 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
-# import argparse
-# parser = argparse.ArgumentParser()
-# parser.add_argument('directory', help="where the directory for temporary files and result file", default=os.path.dirname(__file__))
-# parser.add_argument('filename', help="filename", default='alibaba')
-# parser.add_argument('url', help="url target (list of search)", default="https://www.alibaba.com/products/jewelry.html?spm=a2700.galleryofferlist.0.0.d4d11350t176UR&amp;IndexArea=product_en&amp;assessment_company=ASS&amp;moqt=MOQT100&amp;need_cd=N&amp;ta=y&amp;param_order=CAT-ISO9001,CAT-OHSAS18001,CAT-ISO14001,CAT-BSCI&amp;sortType=TRALV&amp;productTag=1200000228&amp;companyAuthTag=ISO9001,OHSAS18001,ISO14001,BSCI")
-# parser.add_argument('worker', default=5, type=int, help="worker for multithreading requests")
-# parser.add_argument('start', default=1, type=int, help="start page")
-# parser.add_argument('end', help="end page (don't assign if scrap until the end of result)")
-# args = parser.parse_args()
-# url = args.url
-# WORKER = args.worker
-# FILENAME = args.filename
-# if args.directory == '.':
-#     DIRECTORY = os.path.abspath(os.path.dirname(__file__))
-# else:
-#     DIRECTORY = os.path.abspath(args.directory)
-# PAGE_START = args.start
-# if str(args.end).lower() == 'none':
-#     PAGES = None
-# else:
-#     PAGES = int(args.end)
+
 CPU = multiprocessing.cpu_count()
 ######################################################################################################
 url = "https://gzhengdian.en.alibaba.com/productlist.html"
 WORKER = 5
 FILENAME = os.path.basename('gzhengdian')
 DIRECTORY = os.path.abspath('scrap_files')
-PAGE_START = 1
-PAGES = None # None -> until the end, number -> specific page
+PAGE_START = 4
+PAGES = 5  # None -> until the end, number -> specific page
 ######################################################################################################
 
 THREAD = 1
@@ -55,8 +35,6 @@ if THREAD <= 0:
     THREAD = 1
 if THREAD < CPU:
     CPU = THREAD
-
-
 
 
 def scrap(url):
@@ -130,8 +108,8 @@ def url_filter(turl):
     if CRAWLER_TYPE == 'general':
         f = 'http://www.alibaba.com/product-detail/'
     else:
-        f = re.findall(r'.*/productlist',url)[0].replace('/productlist','')
-        return f+turl
+        f = re.findall(r'.*/productlist', url)[0].replace('/productlist', '')
+        return f + turl
     o = f'http:{turl}'
     if f in o:
         return o
@@ -162,23 +140,24 @@ worker_pool = {}
 
 
 def worker(val, worksheet, row, page):
-    x = worker_pool.get(page, 0)
-    worker_pool.update({page: x + 1})
+    global worker_pool
+    data = []
     if val[3] != '':
-        print(f'Page {page}-Worker {x + 1}', f'remaining jobs:{len(lists)}', val[0])
+        print(f'Page {page}-Worker', f'remaining jobs:{len(lists)}', val[0])
         result = overview(val[0])
         result.update({'Minimum MOQ': str(val[4]).replace('(Min Order)', '')})
         if CRAWLER_TYPE == 'general':
             result.update({'ID': re.findall(r'(\d+)\.html', result.get('Productlink'))[0].replace('.html', '')})
         else:
             result.update({'ID': re.findall(r'/product/(\d+)', result.get('Productlink'))[0].replace('/product/', '')})
-        for j, val in enumerate(head_data):
-            worksheet.write(row, j, result.get(val, ''))
-    x = worker_pool.get(page, 0)
-    worker_pool.update({page: x - 1})
+        data = [row, result]
+    x = worker_pool.get(page, [])
+    x.append(data)
+    worker_pool.update({page: x})
 
 
 def periodic(lists, page=1):
+    global worker_pool
     print(f'=======PAGE {page} STARTED========')
     workbook = xlsxwriter.Workbook(f'{DIRNAME}/temp/{FILENAME}{page}.xlsx')
     worksheet = workbook.add_worksheet()
@@ -187,25 +166,34 @@ def periodic(lists, page=1):
         worksheet.write(0, i, val)
     while len(lists) > 0:
         while _thread._count() >= WORKER:
-            time.sleep(1)
+            time.sleep(0.2)
         val = lists.pop()
         _thread.start_new_thread(worker, (val, worksheet, row, page))
-        time.sleep(1)
+        time.sleep(0.1)
         if len(lists) > 0:
             row += 1
+    print('Collecting all workers data')
+    while _thread._count() > 1:
+        time.sleep(0.1)
+    print('Writing to disk...')
+    for i in worker_pool.get(page):
+        if len(i) == 2:
+            for j, val in enumerate(head_data):
+                worksheet.write(i[0], j, i[1].get(val, ''))
     workbook.close()
     print(f"====PAGE {page} DONE====")
-
-
-# _thread.start_new_thread(crawl, (url,))
 
 page = PAGE_START
 status = True
 CRAWLER_TYPE = 'shop'
+
+
 def url_detection(url):
     if re.match(r'(www\.|.*)alibaba\.com/products/', url):
         return 'general'
     return 'shop'
+
+
 while status or _thread._count() > 0:
     if PAGES is None:
         pass
@@ -214,28 +202,38 @@ while status or _thread._count() > 0:
         continue
     url_parsed = parse.urlparse(url)
     params = parse.parse_qs(url_parsed.query)
+    print('Get information about url')
     if url_detection(url) == 'general':
         params = [f'{i}={(params.get(i)[0])}' for i in params.keys()]
         params = "&".join(params)
         _target = f'{url_parsed.scheme}://{url_parsed.netloc}{url_parsed.path}?{params}'
+        print('Exactly:general type')
     else:
         params = [f'{i}={(params.get(i)[0])}' for i in params.keys()]
         params = "&".join(params)
         _page = f'/productlist-{page}.html'
         _target = f'{url_parsed.scheme}://{url_parsed.netloc}{_page}?{params}'
+        print('Exactly:shop type')
 
     print('crawling page', page, ' of ' + _target)
+
+    print('opening browser')
     driver.get(_target)
+    print('Emulating behaviour')
     elements = driver.find_element_by_css_selector('body')
     elements.send_keys(Keys.CONTROL, Keys.END)
     elements.send_keys(Keys.CONTROL + Keys.END)
+
     time.sleep(2)
+    print('Emulating behaviour phase 1')
     elements.send_keys(Keys.CONTROL, Keys.END)
     elements.send_keys(Keys.CONTROL + Keys.END)
     time.sleep(2)
+    print('Emulating behaviour phase 2')
     elements.send_keys(Keys.CONTROL, Keys.END)
     elements.send_keys(Keys.CONTROL + Keys.END)
     time.sleep(2)
+    print('Injecting scripts...')
     if url_detection(url) == 'general':
         CRAWLER_TYPE = 'general'
         execute_script(
@@ -293,16 +291,17 @@ while status or _thread._count() > 0:
         years = ['' for i in orders]
         ratings = ['' for i in orders]
         # print(offers)
-
+    print('Script injected, collecting information..')
     while _thread._count() != 0:
-        time.sleep(5)
+        time.sleep(1)
     lists = list(zip(links, imgs, titles, offers, orders, companies, countries, years, ratings))
     lists = [[url_filter(i[0])] + list(i)[1:] for i in lists if url_filter(i[0]) is not None]
-
+    print('Information collected')
     with open(f'{DIRNAME}/temp/{FILENAME}{page}.json', 'w') as f:
         json.dump(lists, f)
-    x = driver.execute_script('return document.querySelector(".pages-next.disabled") || document.querySelector(".next-btn.next-btn-normal.next-btn-medium.next-pagination-item.next[disabled]")?1:0')
-    print(f"current thread:{_thread._count()}/{WORKER}")
+    x = driver.execute_script(
+        'return document.querySelector(".pages-next.disabled") || document.querySelector(".next-btn.next-btn-normal.next-btn-medium.next-pagination-item.next[disabled]")?1:0')
+    print('Call the workers')
     _thread.start_new_thread(periodic, (lists, page))
     time.sleep(1)
     if int(x) == 1:
