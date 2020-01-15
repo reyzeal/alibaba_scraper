@@ -1,26 +1,39 @@
 import _thread
-import csv
 import json
 import multiprocessing
 import os
 import re
 import time
-import xlsxwriter
+from combine import combine
 import requests
+import xlsxwriter
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
-
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('directory', help="where the directory for temporary files and result file", default=os.path.dirname(__file__))
+parser.add_argument('filename', help="filename", default='alibaba')
+parser.add_argument('url', help="url target (list of search)", default="https://www.alibaba.com/products/jewelry.html?spm=a2700.galleryofferlist.0.0.d4d11350t176UR&amp;IndexArea=product_en&amp;assessment_company=ASS&amp;moqt=MOQT100&amp;need_cd=N&amp;ta=y&amp;param_order=CAT-ISO9001,CAT-OHSAS18001,CAT-ISO14001,CAT-BSCI&amp;sortType=TRALV&amp;productTag=1200000228&amp;companyAuthTag=ISO9001,OHSAS18001,ISO14001,BSCI")
+parser.add_argument('worker', default=5, type=int, help="worker for multithreading requests")
+parser.add_argument('start', default=1, type=int, help="start page")
+parser.add_argument('end', help="end page (don't assign if scrap until the end of result)")
 CPU = multiprocessing.cpu_count()
 ######################################################################################################
-# Configure
-url = "https://www.alibaba.com/products/jewelry.html?spm=a2700.galleryofferlist.0.0.d4d11350t176UR&amp;IndexArea=product_en&amp;assessment_company=ASS&amp;moqt=MOQT100&amp;need_cd=N&amp;ta=y&amp;param_order=CAT-ISO9001,CAT-OHSAS18001,CAT-ISO14001,CAT-BSCI&amp;sortType=TRALV&amp;productTag=1200000228&amp;companyAuthTag=ISO9001,OHSAS18001,ISO14001,BSCI"
-WORKER = 5
-DIRECTORY = 'alibaba'
-FILENAME = 'alibaba_jewelry'
-PAGE_START = 100
-PAGES = None  # none means all
+args = parser.parse_args()
+url = args.url
+WORKER = args.worker
+FILENAME = args.filename
+if args.directory == '.':
+    DIRECTORY = os.path.abspath(os.path.dirname(__file__))
+else:
+    DIRECTORY = os.path.abspath(args.directory)
+PAGE_START = args.start
+if args.end == 'None':
+    PAGES = None
+else:
+    PAGES = int(args.end)
 ######################################################################################################
 
 THREAD = 1
@@ -40,6 +53,7 @@ ops = Options()
 ops.add_argument('--headless')
 ops.add_argument('--ignore-certificate-errors')
 ops.add_argument('--ignore-ssl-errors')
+ops.add_argument("--log-level=3")
 
 
 def scrap(url):
@@ -117,7 +131,7 @@ def url_filter(url):
 
 
 target = '.organic-gallery-offer-outter.J-offer-wrapper a'
-driver = webdriver.Chrome(options=ops)
+driver = webdriver.Chrome(options=ops, service_log_path='NUL')
 
 
 def execute_script(script, return_bool=False, return_script='return window._items'):
@@ -233,3 +247,8 @@ while status or _thread._count() > 0:
         status = False
         PAGES = page
     page += 1
+driver.close()
+print("Combine....")
+combine(DIRECTORY, FILENAME)
+print("DONE")
+time.sleep(5)
