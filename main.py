@@ -32,7 +32,7 @@ if args.directory == '.':
 else:
     DIRECTORY = os.path.abspath(args.directory)
 PAGE_START = args.start
-if args.end == 'None':
+if str(args.end).lower() == 'none':
     PAGES = None
 else:
     PAGES = int(args.end)
@@ -296,7 +296,7 @@ while status or _thread._count() > 0:
 
     with open(f'{DIRNAME}/temp/{FILENAME}{page}.json', 'w') as f:
         json.dump(lists, f)
-    x = driver.execute_script('return document.querySelector(".pages-next.disabled")?1:0')
+    x = driver.execute_script('return document.querySelector(".pages-next.disabled") || document.querySelector(".next-btn.next-btn-normal.next-btn-medium.next-pagination-item.next[disabled]")?1:0')
     print(f"current thread:{_thread._count()}/{WORKER}")
     _thread.start_new_thread(periodic, (lists, page))
     time.sleep(1)
