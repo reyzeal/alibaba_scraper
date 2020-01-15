@@ -48,3 +48,4 @@ There are 2 type of pages:
 ## Output
 
 ![Screenshot](https://raw.githubusercontent.com/reyzeal/alibaba_scraper/master/alibaba.PNG)
+![Run](https://github.com/reyzeal/alibaba_scraper/blob/master/2020-01-16-06-46-17.gif?raw=true)
