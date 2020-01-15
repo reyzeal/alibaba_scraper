@@ -23,12 +23,16 @@ pip3 install -r requirements.txt
 3. Download chromedriver
 ```
 https://chromedriver.chromium.org/downloads
+
+or directly for v80.0.3987.16:
+https://chromedriver.storage.googleapis.com/index.html?path=80.0.3987.16/
 ```
+After download is completed, place the executable in the same folder of this script.
+
 4. Run main.py for scraping
 ```
-python main.py
-```
-5. Run combine.py for combining all of pages as one file
-```
-python combine.py
+python main.py directory filename url_target worker page_start page_end
+
+page_start : start scraping from N page number
+page_end : number, but write none if you want to scrape until the end of result
 ```
