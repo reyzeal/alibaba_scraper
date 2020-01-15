@@ -33,9 +33,17 @@ After download is completed, place the executable in the same folder of this scr
 ```
 python main.py directory filename url_target worker page_start page_end
 
+directory : name for working folder, write "." for current folder
+filename : name for temporary files and result spreadsheet (like "alibaba" then the result will be -> "alibaba.xlsx")
+url : must double quote like "https://gzhengdian.en.alibaba.com/productlist.html?spm=a2700.icbuShop.41413.
+45.2ded68dbUnr74k"
+worker : how many thread to get the requests (ex. 5)
 page_start : start scraping from N page number
 page_end : number, but write none if you want to scrape until the end of result
 ```
+There are 2 type of pages:
+1. gallery like : https://www.alibaba.com/products/jewelry.html
+2. hosted shop : https://gzhengdian.en.alibaba.com/productlist.html
 
 ## Output
 
