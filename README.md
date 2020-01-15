@@ -36,3 +36,7 @@ python main.py directory filename url_target worker page_start page_end
 page_start : start scraping from N page number
 page_end : number, but write none if you want to scrape until the end of result
 ```
+
+## Output
+
+![Screenshot](https://raw.githubusercontent.com/reyzeal/alibaba_scraper/master/alibaba.PNG)
