@@ -39,8 +39,9 @@ def combine(DIRECTORY, FILENAME):
                         row += 1
             except IndexError:
                 print("Corrupted file:"+i.name)
+            # os.remove(os.path.join(DIRNAME, i.name))
     workbook.close()
-    shutil.rmtree(DIRNAME, ignore_errors=True)
+    # shutil.rmtree(DIRNAME, ignore_errors=True)
 
 
 if __name__ == '__main__':
