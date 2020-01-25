@@ -93,7 +93,7 @@ def overview(url):
             })
     else:
         maref = element(text, '.ma-reference-price')[0].getText().strip()
-        refprice = re.findall(r'[$\d.]+$',price[0].getText())[0]
+        refprice = re.findall(r'[$,\d.]+$',price[0].getText())[0]
         maref = maref.replace(refprice, '')
         maref = str(re.findall(r'/ (\w+)', maref)[0]).strip()
         product.update({'MOQ number 1': '1', 'MOQ text 1': maref, 'Price 1': refprice})
